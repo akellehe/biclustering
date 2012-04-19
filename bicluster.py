@@ -1,5 +1,6 @@
 import numpy
 import random
+from intertools import combinations
 
 # Get X
 X = numpy.arange( 100 ).reshape( 10, 10 )
@@ -64,11 +65,48 @@ def get_initial_A( k, l, B, X ):
 def have_converged( A, B ):
     return sum( A - B ) == 0
 
+def build_matrix_from_k_rows_of_X( k_rows, X ):
+    M = numpy.zeros( X.shape )
+    for row in k_rows:
+        M[row,:] = X[row,:]
+    return M
+
+def build_matrix_from_l_cols_of_X( l_cols, X ):
+    M = numpy.zeros( X.shape )
+    for col in l_cols:
+        M[:,col] = X[:,col]
+    return M
+
+def sum_rows_of_A_over_cols_of_B( A, B ):
+    print "Do it."
+
+def sum_cols_of_B_over_rows_of_A( A, B ):
+    print "Yep"
+
 def get_k_rows_with_largest_sum_over_columns_of_B( k, B ):
-    
+    column_list = range( 1, m )
+    winning_total = 0
+    winner = None
+    for max_candidate in combinations( column_list, k ):
+        A = build_matrix_from_k_rows_of_X( max_candidate, X )
+        score = sum_rows_of_A_over_cols_of_B( A, B )
+        if score > winning_total:
+            winner = A
+            winning_total = score
+    return A
+
 
 def get_l_columns_with_largest_sum_over_rows_of_A( l, A ):
-
+    row_list = range( 1, n )
+    winning_total = 0
+    winner = None
+    for max_candidate in combinations( row_list, l ):
+        B = build_matrix_from_l_cols_of_X( max_candidate, X )
+        score = sum_cols_of_B_over_rows_of_A( A, B )
+        if score > winning_total:
+            winner = B
+            winning_total = score
+    return B
 
 B = get_B_at_random( )
 A = get_initial_A( k, l, B, X )

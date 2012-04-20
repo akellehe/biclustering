@@ -17,22 +17,30 @@ import numpy
 import random
 from itertools import combinations
 
-# Get X
-SIZE      = 10
-SHAPE     = ( SIZE, SIZE ) 
-X         = numpy.random.normal( size=SHAPE )
-FEATURE_1 = numpy.zeros( SHAPE )
-FEATURE_1[0:SIZE/2,0:SIZE/2] = 10
-#FEATURE_2 = numpy.zeros( SHAPE )
-#FEATURE_2[0:SIZE,0:SIZE/4] = 0.5
-#FEATURE_3 = numpy.zeros( SHAPE )
-#FEATURE_3[SIZE - SIZE/4:SIZE,SIZE-SIZE/4:SIZE] = 0.5
-X += FEATURE_1
+# A, k, m
+# B, l, n
+
+
+# Define a stability threashold 
+STABILITY_THREASHOLD = 1000 
+
+# Define the size and shape of the test matrix.
+SIZE  = 10
+SHAPE = ( SIZE, SIZE ) 
+
+# Populate the test matrix with gaussian noise on (0,1)
+X = numpy.random.normal( size=SHAPE )
+X += 1
+X *= 0.5
+
+# Add a feature to detect
+FEATURE = numpy.zeros( SHAPE )
+FEATURE[0:SIZE/2,0:SIZE/2] = 0.5
+X += FEATURE
 
 # Get m and n
 m, n = X.shape # rows, columns
 
-STABILITY_THREASHOLD = 1000000 
 
 # Select initial k and l from {1...[m/2]} and {1...[n/2]} respectively (at random)
 def get_k_and_l( ):
@@ -127,6 +135,13 @@ def get_B( k, l, A, X ):
             winner = B
     return winner
 
+def get_best_A( k, l, B, X ):
+    running_max = 0
+    winner = None
+    combos = combinations( range( 0, m ), k )  
+    for combo in combos:
+        print combo
+
 def have_converged( A, B ):
     return sum( A - B ) == 0
 
@@ -202,9 +217,9 @@ def get_submatrix( X, k=None, l=None ):
             highest_score = score
             B = B_candidate.copy( )
             stability_counter = 0
-        k, l = get_k_and_l( )
         stability_counter += 1
+    print "k, l: " + str( k ) + ", " + str( l )
     return get_intersection( A, B, X )
 
-
-print get_submatrix( X )
+if __name__ == '__main__':
+    print get_submatrix( X )

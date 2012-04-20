@@ -1,14 +1,23 @@
 import numpy
 import random
-from intertools import combinations
+from itertools import combinations
 
 # Get X
-X = numpy.arange( 100 ).reshape( 10, 10 )
+SIZE      = 100
+SHAPE     = ( SIZE, SIZE ) 
+X         = numpy.random.normal( size=SHAPE )
+FEATURE_1 = numpy.zeros( SHAPE )
+FEATURE_1[0:SIZE/2,0:SIZE/2] = 10
+#FEATURE_2 = numpy.zeros( SHAPE )
+#FEATURE_2[0:SIZE,0:SIZE/4] = 0.5
+#FEATURE_3 = numpy.zeros( SHAPE )
+#FEATURE_3[SIZE - SIZE/4:SIZE,SIZE-SIZE/4:SIZE] = 0.5
+X += FEATURE_1
 
 # Get m and n
 m, n = X.shape # rows, columns
 
-ITERATIONS_FOR_A = 1000
+STABILITY_THREASHOLD = 5000
 
 # Select initial k and l from {1...[m/2]} and {1...[n/2]} respectively (at random)
 def get_k_and_l( ):
@@ -17,9 +26,15 @@ def get_k_and_l( ):
     return ( k, l )
 
 # Start with a random B ( matrix of l cols )
-def get_B_at_random( X, l, n ):
+def get_B_candidate_at_random( X, l, n, sets_checked ):
     l_zeros = numpy.zeros( ( 1, l ), dtype=int )
     l_rands = numpy.random.random( ( 1, l ) )
+
+    while l_rands in sets_checked:
+        l_rands = numpy.random.random( ( 1, l ) )
+    
+    sets_checked.append( l_rands )
+
     l_rands *= n
     l_zeros += l_rands
     which_l_cols = l_zeros
@@ -31,9 +46,14 @@ def get_B_at_random( X, l, n ):
     return B 
 
 # Find the best A ( matrix of k rows ) for the chosen B
-def get_A_candidate_at_random( X, k, m ):
+def get_A_candidate_at_random( X, k, m, sets_checked ):
     k_zeros = numpy.zeros( ( 1, k ), dtype=int )
     k_rands = numpy.random.random( ( 1, k ) )
+
+    while k_rands.all( ) in sets_checked:
+        k_rands = numpy.random.random( ( 1, k ) )
+
+    sets_checked.append( k_rands )
     k_rands *= m
     k_zeros += k_rands
     which_k_rows = k_zeros 
@@ -43,23 +63,36 @@ def get_A_candidate_at_random( X, k, m ):
         A[i,:] = X[i,:]
 
     return A 
-
-def sum_cols_of_A_over_rows_of_B( A, B, X ):
+        
+def score_A_and_B( A, B, X ):
     C = A * B
     indicies = C.nonzero( )
     entries = A[ indicies ]
     total = numpy.sum( entries )
     return total
-
-def get_initial_A( k, l, B, X ):
+     
+def get_A( k, l, B, X ):
     running_max = 0
     winner = None
-    for iteration in range( 0, ITERATIONS_FOR_A ):
-        A = get_A_candidate_at_random( X, k, m )
-        total = sum_cols_of_A_over_rows_of_B( A, B, X )
+    a_sets_checked = [ ]
+    for iteration in range( 0, STABILITY_THREASHOLD / 10 ):
+        A = get_A_candidate_at_random( X, k, m, a_sets_checked )
+        total = score_A_and_B( A, B, X )
         if total > running_max:
             running_max = total
             winner = A
+    return winner
+
+def get_B( k, l, A, X ):
+    running_max = 0
+    winner = None
+    b_sets_checked = [ ]
+    for iteration in range( 0, STABILITY_THREASHOLD / 10 ):
+        B = get_B_candidate_at_random( X, l, n, b_sets_checked )
+        total = score_A_and_B( A, B, X )
+        if total > running_max:
+            running_max = total
+            winner = B
     return winner
 
 def have_converged( A, B ):
@@ -76,12 +109,6 @@ def build_matrix_from_l_cols_of_X( l_cols, X ):
     for col in l_cols:
         M[:,col] = X[:,col]
     return M
-
-def sum_rows_of_A_over_cols_of_B( A, B ):
-    print "Do it."
-
-def sum_cols_of_B_over_rows_of_A( A, B ):
-    print "Yep"
 
 def get_k_rows_with_largest_sum_over_columns_of_B( k, B ):
     column_list = range( 1, m )
@@ -108,10 +135,39 @@ def get_l_columns_with_largest_sum_over_rows_of_A( l, A ):
             winning_total = score
     return B
 
-B = get_B_at_random( )
-A = get_initial_A( k, l, B, X )
-while have_converged( A, B ) == False:
-    A = 
-    B = 
+def get_intersection( A, B, X ):
+    intersection = numpy.zeros( X.shape )
+    C = A * B
+    indicies = C.nonzero( )
+    intersection[ indicies ] = A[ indicies ]
+    return intersection 
+    
+
+def get_submatrix( X, k=None, l=None ):
+    stability_counter = 0
+    highest_score = -100000
+    k, l = get_k_and_l( )
+    a_sets_checked = [ ]
+    b_sets_checked = [ ]
+    B = get_B_candidate_at_random( X, l, n, b_sets_checked )
+    while stability_counter < STABILITY_THREASHOLD:
+        A_candidate = get_A_candidate_at_random( X, k, m, a_sets_checked )
+        #A_candidate = get_A( k, l, B, X )
+        score = score_A_and_B( A_candidate, B, X )
+        if score > highest_score:
+            highest_score = score
+            A = A_candidate.copy( )
+            stability_counter = 0
+        B_candidate = get_B_candidate_at_random( X, l, n, b_sets_checked )
+        #B_candidate = get_B( k, l, A, X )
+        score = score_A_and_B( A, B_candidate, X )
+        if score > highest_score:
+            highest_score = score
+            B = B_candidate.copy( )
+            stability_counter = 0
+        k, l = get_k_and_l( )
+        stability_counter += 1
+    return get_intersection( A, B, X )
 
 
+print get_submatrix( X )

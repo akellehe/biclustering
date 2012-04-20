@@ -3,7 +3,7 @@ import random
 from itertools import combinations
 
 # Get X
-SIZE      = 100
+SIZE      = 10
 SHAPE     = ( SIZE, SIZE ) 
 X         = numpy.random.normal( size=SHAPE )
 FEATURE_1 = numpy.zeros( SHAPE )
@@ -17,7 +17,7 @@ X += FEATURE_1
 # Get m and n
 m, n = X.shape # rows, columns
 
-STABILITY_THREASHOLD = 5000
+STABILITY_THREASHOLD = 1000000 
 
 # Select initial k and l from {1...[m/2]} and {1...[n/2]} respectively (at random)
 def get_k_and_l( ):
@@ -29,15 +29,23 @@ def get_k_and_l( ):
 def get_B_candidate_at_random( X, l, n, sets_checked ):
     l_zeros = numpy.zeros( ( 1, l ), dtype=int )
     l_rands = numpy.random.random( ( 1, l ) )
-
-    while l_rands in sets_checked:
-        l_rands = numpy.random.random( ( 1, l ) )
-    
-    sets_checked.append( l_rands )
-
     l_rands *= n
     l_zeros += l_rands
     which_l_cols = l_zeros
+
+    sets = 0
+    while tuple( which_l_cols[ 0 ] ) in sets_checked:
+        l_zeros = numpy.zeros( ( 1, l ), dtype=int )
+        l_rands = numpy.random.random( ( 1, l ) )
+        l_rands *= n
+        l_zeros += l_rands 
+        which_l_cols = l_zeros
+        sets += 1
+        if sets >= STABILITY_THREASHOLD:
+            return False 
+        print "Fetching unchecked set..."
+    
+    sets_checked.append( tuple( which_l_cols[ 0 ] ) )
 
     B = numpy.zeros( X.shape ) 
     for i in which_l_cols:
@@ -49,14 +57,23 @@ def get_B_candidate_at_random( X, l, n, sets_checked ):
 def get_A_candidate_at_random( X, k, m, sets_checked ):
     k_zeros = numpy.zeros( ( 1, k ), dtype=int )
     k_rands = numpy.random.random( ( 1, k ) )
-
-    while k_rands.all( ) in sets_checked:
-        k_rands = numpy.random.random( ( 1, k ) )
-
-    sets_checked.append( k_rands )
     k_rands *= m
     k_zeros += k_rands
     which_k_rows = k_zeros 
+
+    sets = 0
+    while tuple( which_k_rows[ 0 ] ) in sets_checked: 
+        k_zeros = numpy.zeros( ( 1, k ), dtype=int )
+        k_rands = numpy.random.random( ( 1, k ) )
+        k_rands *= m
+        k_zeros += k_rands
+        which_k_rows = k_zeros 
+        sets += 1
+        if sets >= STABILITY_THREASHOLD:
+            return False
+        print "Fetching unchecked set..." 
+    
+    sets_checked.append( tuple( which_k_rows[ 0 ] ) )
    
     A = numpy.zeros( X.shape )
     for i in which_k_rows:
@@ -151,7 +168,10 @@ def get_submatrix( X, k=None, l=None ):
     b_sets_checked = [ ]
     B = get_B_candidate_at_random( X, l, n, b_sets_checked )
     while stability_counter < STABILITY_THREASHOLD:
+        print "Iterating... " + str( stability_counter )
         A_candidate = get_A_candidate_at_random( X, k, m, a_sets_checked )
+        if A_candidate is False:
+            return get_intersection( A, B, X )
         #A_candidate = get_A( k, l, B, X )
         score = score_A_and_B( A_candidate, B, X )
         if score > highest_score:
@@ -159,6 +179,8 @@ def get_submatrix( X, k=None, l=None ):
             A = A_candidate.copy( )
             stability_counter = 0
         B_candidate = get_B_candidate_at_random( X, l, n, b_sets_checked )
+        if B_candidate is False:
+            return get_intersection( A, B, X )
         #B_candidate = get_B( k, l, A, X )
         score = score_A_and_B( A, B_candidate, X )
         if score > highest_score:

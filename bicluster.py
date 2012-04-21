@@ -22,7 +22,7 @@ from math import *
 #B, l, n cols
 
 ITERATIONS = 1000
-SIZE = 200
+SIZE = 1000
 SHAPE = ( SIZE, SIZE )
 
 # Populate a test matrix with gaussian noise in (0,1)
@@ -35,8 +35,6 @@ FEATURE = numpy.zeros( SHAPE )
 FEATURE[0:SIZE/2,0:SIZE/2] = 4
 X += FEATURE
 
-print X
-
 m, n = X.shape
 
 # Select initial k and l from {1...[m/2]} and {1...[n/2]} respectively (at random)
@@ -44,7 +42,6 @@ def get_k_and_l( m, n ):
     k = random.randint( 1, int( m/2 ) )
     l = random.randint( 1, int( n/2 ) )
     return ( k, l )
-
 
 def get_initial_B( l, n, X ):
     l_zeros = numpy.zeros( ( 1, l ), dtype=int )
@@ -56,38 +53,38 @@ def get_initial_B( l, n, X ):
     for i in which_l_cols:
         B[:,i] = X[:,i]
     return B
-
-def get_k_rows_with_largest_sum_over_B( k, B ):
-    sums = [ ]
-    for row in B:
-        sums.append( sum( row ) )
-
-    best_rows = [ ]
-    # Row indicies sorted lowest to highest:
-    inds = [ i for ( i, j ) in sorted( enumerate( sums ), key = operator.itemgetter( 1 ) ) ]
-    for i in range( 0, k ):
-        best_rows.append( inds.pop( ) )
-
-    return best_rows
+       
+def get_initial_B_inds( l, n, X ):
+    l_zeros = numpy.zeros( ( 1, l ), dtype=int )
+    l_rands = numpy.random.random( ( 1, l ) )
+    l_rands *= n
+    l_zeros += l_rands
+    return l_zeros
 
 def get_A_from_row_indicies( rows, X ):
     A = numpy.zeros( X.shape )
-    for row_index in rows:
-        A[row_index,:] = X[row_index,:]
+    for row in rows:
+        A[row,:] = X[row,:]
     return A
 
-def get_l_cols_with_largest_sum_over_A( l, A ):
+def get_l_cols_with_largest_sum_over_A( l, A_rows, X ):
     sums = [ ]
-    for col in A.transpose( ):
-        sums.append( sum( col ) )
+    for row in A_rows:
+        sums.append( sum( X[row,:] ) )
 
-    best_cols = [ ]
     # Col indicies sorted from lowest to highest:
     inds = [ i for ( i, j ) in sorted( enumerate( sums ), key = operator.itemgetter( 1 ) ) ]
-    for i in range( 0, l ):
-        best_cols.append( inds.pop( ) )
+    return inds[-l:]
 
-    return best_cols
+def get_k_rows_with_largest_sum_over_B( k, B_cols, X ):
+    sums = [ ]
+    for col in B_cols:
+        sums.append( sum( X[:,col] ) )
+
+    # Row indicies sorted lowest to highest:
+    inds = [ i for ( i, j ) in sorted( enumerate( sums ), key = operator.itemgetter( 1 ) ) ]
+    best_rows = inds[-k:]
+    return best_rows 
 
 def get_B_from_col_indicies( cols, X ):
     B = numpy.zeros( X.shape )
@@ -102,7 +99,15 @@ def have_converged( newA, newB, oldA, oldB ):
         return True
     else:
         return False
-   
+
+def inds_have_converged( new_a_inds, new_b_inds, old_a_inds, old_b_inds ):
+    a_converged = ( set( new_a_inds ) == set( old_a_inds ) )
+    b_converged = ( set( new_b_inds ) == set( old_b_inds ) )
+    if a_converged and b_converged:
+        return True
+    else:
+        return False
+
 def get_intersection( A, B ):
     intersection = numpy.zeros( A.shape )
     C = A * B
@@ -112,8 +117,7 @@ def get_intersection( A, B ):
 
 def binomial( n, k ):
     if n > k:
-        b = factorial( n ) / ( factorial( k ) * factorial( n - k ) )
-        return b
+        return factorial( n ) / ( factorial( k ) * factorial( n - k ) )
 
 def S( U, k, l, m, n ):
     tau = numpy.average( U )
@@ -123,6 +127,12 @@ def S( U, k, l, m, n ):
     third_term  = -log( ( tau**2.0 * k * l ), 2 ) / 2.0
 
     return log( 2.0 ) * ( first_term + second_term + third_term ) 
+        
+def get_intersection_inds( rows, cols ):
+    A = get_A_from_row_indicies( rows, X )
+    B = get_B_from_col_indicies( cols, X )
+    return get_intersection( A, B )
+
 
 def get_remaining_time( start_time, total_time, iteration ):
     if iteration == 0:
@@ -131,33 +141,41 @@ def get_remaining_time( start_time, total_time, iteration ):
     time_per_iteration = elapsed_time / iteration
     return str( time_per_iteration * ( ITERATIONS - iteration ) / 60 ) + " minutes remaining"
 
+def get_n_randoms_from_list( n, mylist ):
+    out = [ ]
+    for i in range( n ):
+        pos = random.randrange( len( mylist ) )
+        elem = mylist[ pos ]
+        mylist[pos] = mylist[-1]
+        del mylist[-1]
+        out.append( elem )
+    return out
+    
+
 if __name__ == '__main__':
-    winner = numpy.zeros( X.shape )
+    winner        = numpy.zeros( X.shape )
     winning_score = 0 
-    end_time = False
-    start_time = time.time( )
+    end_time      = False
+    start_time    = time.time( )
     for it in range( 0, ITERATIONS ):
-        k, l = get_k_and_l( m, n )
-        B = get_initial_B( l, n, X )
-        lastA = numpy.zeros( X.shape )
-        lastB = numpy.zeros( X.shape )
+        print it
+        k, l  = get_k_and_l( m, n )
+        b_inds = get_n_randoms_from_list( l, range( X.shape[ 1 ] ) )
+        last_a_inds = [ ]
+        last_b_inds = [ ]
         while True: 
-            a_inds = get_k_rows_with_largest_sum_over_B( k, B )
-            A = get_A_from_row_indicies( a_inds, X )
-            b_inds = get_l_cols_with_largest_sum_over_A( l, A )
-            B = get_B_from_col_indicies( b_inds, X )
-            if have_converged( A, B, lastA, lastB ):
+            a_inds = get_k_rows_with_largest_sum_over_B( k, b_inds, X )
+            b_inds = get_l_cols_with_largest_sum_over_A( l, a_inds, X )
+            if inds_have_converged( a_inds, b_inds, last_a_inds, last_b_inds ):
                 break
-            lastA = A.copy( )
-            lastB = B.copy( )
-        U = get_intersection( A, B )
+            last_a_inds = a_inds
+            last_b_inds = b_inds
+        U = get_intersection_inds( a_inds, b_inds )
         U_score = S( U, k, l, m, n )
         if U_score > winning_score:
             winner = U.copy( )
             winning_score = U_score
-
         print get_remaining_time( start_time, time.time( ), it )
-
-
+    
     print winning_score
     print winner

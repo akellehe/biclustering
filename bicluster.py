@@ -22,7 +22,7 @@ from math import *
 #B, l, n cols
 
 ITERATIONS = 1000
-SIZE = 1000
+SIZE = 5000
 SHAPE = ( SIZE, SIZE )
 
 # Populate a test matrix with gaussian noise in (0,1)

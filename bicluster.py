@@ -13,6 +13,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
     Copyright 2012 (c) Andrew Kelleher. All rights reserved.
+
+    This module implements the LAS method of biclustering as described in
+    http://www.unc.edu/~nobel/nobel/links/Papers/LASpaperP.pdf
 '''
 import numpy
 import random

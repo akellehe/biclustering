@@ -12,13 +12,13 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-    Copyright 2012 (c) Andrew Kelleher.  All rights reserved.
+    Copyright 2012 (c) Andrew Kelleher. All rights reserved.
 '''
 import numpy
 import random
 import operator
 import time
-from math import *
+import math
 
 #A, k, m rows
 #B, l, n cols
@@ -48,6 +48,7 @@ def get_A_from_row_indicies( rows, X ):
     return A
 
 def get_l_cols_with_largest_sum_over_A( l, A_rows, X_transpose ):
+    '''Returns the indicies of X (transpose) for the columns with the largest sum over A'''
     sums = [ ]
     for col in X_transpose:
         sums.append( sum( col[A_rows] ) )
@@ -57,6 +58,7 @@ def get_l_cols_with_largest_sum_over_A( l, A_rows, X_transpose ):
     return inds[-l:]
 
 def get_k_rows_with_largest_sum_over_B( k, B_cols, X ):
+    '''Returns the k rows with the largest sum over the column sub-matrix of X, B'''
     sums = [ ]
     for row in X:
         sums.append( sum( row[B_cols] ) )
@@ -67,12 +69,14 @@ def get_k_rows_with_largest_sum_over_B( k, B_cols, X ):
     return best_rows 
 
 def get_B_from_col_indicies( cols, X ):
+    '''Builds a matrix of the shape of X out of the column indicies corresponding to B with zeros where B is 0'''
     B = numpy.zeros( X.shape )
     for col_index in cols:
         B[:,col_index] = X[:,col_index]
     return B
 
 def inds_have_converged( new_a_inds, new_b_inds, old_a_inds, old_b_inds ):
+    '''Checks to see that A and B have converged. Returns True if so, False if not. Takes the indicies corresponding to the latest A, new_a_inds, those for B, new_b_inds, as well as the indicies corresponding to the last A and B; old_a_inds and old_b_inds respectively'''
     a_converged = ( set( new_a_inds ) == set( old_a_inds ) )
     b_converged = ( set( new_b_inds ) == set( old_b_inds ) )
     if a_converged and b_converged:
@@ -81,6 +85,7 @@ def inds_have_converged( new_a_inds, new_b_inds, old_a_inds, old_b_inds ):
         return False
 
 def get_intersection( A, B ):
+    '''Builds a matrix the shape of A and B from a union of the two. (i.e. Where both matricies are non-zero)'''
     intersection = numpy.zeros( A.shape )
     C = A * B
     indicies = C.nonzero( )
@@ -88,24 +93,28 @@ def get_intersection( A, B ):
     return intersection
 
 def binomial( n, k ):
+    '''Expand the binomial'''
     if n > k:
         return factorial( n ) / ( factorial( k ) * factorial( n - k ) )
 
 def S( U, k, l, m, n ):
+    '''Scoring function for a submatrix of a parent matrix of width n and height m, U of width l and height k''' 
     tau = numpy.average( U )
 
-    first_term  = -log( binomial( m, k ) * binomial( n, l ), 2 )
-    second_term = ( ( tau**2.0 ) * k * l ) / ( 2.0 * log( 2.0 ) )
-    third_term  = -log( ( tau**2.0 * k * l ), 2 ) / 2.0
+    first_term  = -math.log( binomial( m, k ) * binomial( n, l ), 2 )
+    second_term = ( ( tau**2.0 ) * k * l ) / ( 2.0 * math.log( 2.0 ) )
+    third_term  = -math.log( ( tau**2.0 * k * l ), 2 ) / 2.0
 
-    return log( 2.0 ) * ( first_term + second_term + third_term ) 
+    return math.log( 2.0 ) * ( first_term + second_term + third_term ) 
         
-def get_intersection_inds( rows, cols ):
+def get_intersection_inds( rows, cols, X ):
+    '''Builds a matrix of the shape of A and B ( submatricies of X ) from the indicies corresponding to the both. A is a row matrix B is a column matrix'''
     A = get_A_from_row_indicies( rows, X )
     B = get_B_from_col_indicies( cols, X )
     return get_intersection( A, B )
 
 def get_remaining_time( start_time, total_time, iteration ):
+    '''Prints how much time left in the main loop'''
     if iteration == 0:
         return ""
     elapsed_time = total_time - start_time
@@ -113,6 +122,7 @@ def get_remaining_time( start_time, total_time, iteration ):
     return str( time_per_iteration * ( ITERATIONS - iteration ) / 60 ) + " minutes remaining"
 
 def get_n_randoms_from_list( n, mylist ):
+    '''Returns a unique list of length n from mylist'''
     out = [ ]
     for i in range( n ):
         pos = random.randrange( len( mylist ) )
@@ -123,13 +133,21 @@ def get_n_randoms_from_list( n, mylist ):
     return out
 
 def convert_submatrix_to_mean( U ):
+    '''Build a matrix the shape of U consisiting of entries corresponding to the mean value of U where U is non-zero'''
     inds = U.nonzero( )
     avg  = numpy.average( U )
     U *= 0
     U[ inds ] = avg
     return U
 
+def get_submatrix_from_cluster( cluster, X ):
+    '''Returns a matrix the shape of X corresponding to a set of indicies corresponding to a cluster'''
+    wrapper = numpy.zeros( X.shape )
+    wrapper[cluster] = X[cluster]
+    
+
 def bicluster( X ):
+    '''Bicluster the matrix, X. Returns a list of indicies corresponding to the biclusters. get_submatrix_from_cluster( ) can be used to get the corresponding sub-matrix of X.''' 
     submatricies_found = 0
     m, n = X.shape
     X_transpose = X.transpose( )
@@ -185,13 +203,10 @@ if __name__ == '__main__':
     FEATURE[0:SIZE/2,0:SIZE/2] = 2.0
     X += FEATURE
 
-    print X
-
     clusters = bicluster( X.copy( ) )
     for cluster in clusters:
-        wrapper = numpy.zeros( X.shape )
-        wrapper[cluster] = X[cluster]
-        print wrapper 
+        print get_submatrix_from_cluster( cluster, X )
+
 ''' 
     clusters = bicluster( -X )
     for cluster in clusters:

@@ -26,27 +26,6 @@ from math import *
 ITERATIONS       = 1000
 MAX_SUBMATRICIES = 5
 
-# Populate a test matrix with gaussian noise in (0,1)
-SIZE  = 10
-SHAPE = ( SIZE, SIZE )
-X     = abs( numpy.random.normal( size=SHAPE ) )
-X    *= X[ numpy.unravel_index( X.argmax( ), X.shape ) ]
-
-# Add a feature to detect
-FEATURE = numpy.zeros( SHAPE )
-FEATURE[0:SIZE/2,0:SIZE/2] = 2.0
-X += FEATURE
-
-FEATURE = numpy.zeros( SHAPE )
-FEATURE[SIZE/2:SIZE-1,SIZE/2:SIZE-1] = -2
-X += FEATURE
-
-#FEATURE = numpy.zeros( SHAPE )
-#FEATURE[SIZE/2:SIZE-1,SIZE/2:SIZE-1] = 2
-#X += FEATURE
-
-m, n = X.shape
-
 # Select initial k and l from {1...[m/2]} and {1...[n/2]} respectively (at random)
 def get_k_and_l( m, n ):
     k = random.randint( 1, int( m/2 ) )
@@ -168,8 +147,11 @@ def convert_submatrix_to_mean( U ):
     U[ inds ] = avg
     return U
 
-if __name__ == '__main__':
+
+def bicluster( X ):
     submatricies_found = 0
+    m, n = X.shape
+    clusters = [ ]
     while True:
         winner        = numpy.zeros( X.shape )
         winning_score = 0 
@@ -201,9 +183,39 @@ if __name__ == '__main__':
         if submatricies_found >= MAX_SUBMATRICIES:
             break
 
-        print winner 
-        print winning_score
-        
+        if len( winner.nonzero( )[ 0 ] ) > 0:
+            clusters.append( winner.nonzero( ) )
+
         X -= convert_submatrix_to_mean( winner )
 
         submatricies_found += 1
+    return clusters
+
+if __name__ == '__main__':
+    # Populate a test matrix with gaussian noise in (0,1)
+    SIZE  = 10
+    SHAPE = ( SIZE, SIZE )
+    X     = abs( numpy.random.normal( size=SHAPE ) )
+    X    *= X[ numpy.unravel_index( X.argmax( ), X.shape ) ]
+
+    # Add a feature to detect
+    FEATURE = numpy.zeros( SHAPE )
+    FEATURE[0:SIZE/2,0:SIZE/2] = 2.0
+    X += FEATURE
+
+    # Add a feature to detect
+    FEATURE = numpy.zeros( SHAPE )
+    FEATURE[SIZE/2:SIZE-1,SIZE/2:SIZE-1] = -2.0
+    X += FEATURE
+    
+    clusters = bicluster( X )
+    for cluster in clusters:
+        wrapper = numpy.zeros( X.shape )
+        wrapper[cluster] = X[cluster]
+        print wrapper 
+    
+    clusters = bicluster( -X )
+    for cluster in clusters:
+        wrapper = numpy.zeros( X.shape )
+        wrapper[cluster] = X[cluster]
+        print wrapper 

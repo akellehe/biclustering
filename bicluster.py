@@ -23,27 +23,17 @@ from math import *
 #A, k, m rows
 #B, l, n cols
 
-ITERATIONS       = 1000
+ITERATIONS       = 2000
 MAX_SUBMATRICIES = 5
 
-# Select initial k and l from {1...[m/2]} and {1...[n/2]} respectively (at random)
 def get_k_and_l( m, n ):
+    '''Selects a k and l on {1...[m/2]} and {1...[n/2]} respectively (at random)'''
     k = random.randint( 1, int( m/2 ) )
     l = random.randint( 1, int( n/2 ) )
     return ( k, l )
 
-def get_initial_B( l, n, X ):
-    l_zeros = numpy.zeros( ( 1, l ), dtype=int )
-    l_rands = numpy.random.random( ( 1, l ) )
-    l_rands *= n
-    l_zeros += l_rands
-    which_l_cols = l_zeros
-    B = numpy.zeros( X.shape )
-    for i in which_l_cols:
-        B[:,i] = X[:,i]
-    return B
-       
 def get_initial_B_inds( l, n, X ):
+    '''Randomly select a matrix, B, of l columns from a matrix, X, of n columns'''
     l_zeros = numpy.zeros( ( 1, l ), dtype=int )
     l_rands = numpy.random.random( ( 1, l ) )
     l_rands *= n
@@ -51,15 +41,16 @@ def get_initial_B_inds( l, n, X ):
     return l_zeros
 
 def get_A_from_row_indicies( rows, X ):
+    '''Builds a submatrix, A, of the matrix X consisting of the rows corresponding to indicies, rows'''
     A = numpy.zeros( X.shape )
     for row in rows:
         A[row,:] = X[row,:]
     return A
 
-def get_l_cols_with_largest_sum_over_A( l, A_rows, X ):
+def get_l_cols_with_largest_sum_over_A( l, A_rows, X_transpose ):
     sums = [ ]
-    for row in A_rows:
-        sums.append( sum( X[row,:] ) )
+    for col in X_transpose:
+        sums.append( sum( col[A_rows] ) )
 
     # Col indicies sorted from lowest to highest:
     inds = [ i for ( i, j ) in sorted( enumerate( sums ), key = operator.itemgetter( 1 ) ) ]
@@ -67,8 +58,8 @@ def get_l_cols_with_largest_sum_over_A( l, A_rows, X ):
 
 def get_k_rows_with_largest_sum_over_B( k, B_cols, X ):
     sums = [ ]
-    for col in B_cols:
-        sums.append( sum( X[:,col] ) )
+    for row in X:
+        sums.append( sum( row[B_cols] ) )
 
     # Row indicies sorted lowest to highest:
     inds = [ i for ( i, j ) in sorted( enumerate( sums ), key = operator.itemgetter( 1 ) ) ]
@@ -80,14 +71,6 @@ def get_B_from_col_indicies( cols, X ):
     for col_index in cols:
         B[:,col_index] = X[:,col_index]
     return B
-
-def have_converged( newA, newB, oldA, oldB ):
-    a_converged = ( sum( oldA ) - sum( newA ) ).all( ) == 0 
-    b_converged = ( sum( oldB ) - sum( newB ) ).all( ) == 0 
-    if a_converged and b_converged:
-        return True
-    else:
-        return False
 
 def inds_have_converged( new_a_inds, new_b_inds, old_a_inds, old_b_inds ):
     a_converged = ( set( new_a_inds ) == set( old_a_inds ) )
@@ -122,7 +105,6 @@ def get_intersection_inds( rows, cols ):
     B = get_B_from_col_indicies( cols, X )
     return get_intersection( A, B )
 
-
 def get_remaining_time( start_time, total_time, iteration ):
     if iteration == 0:
         return ""
@@ -147,10 +129,10 @@ def convert_submatrix_to_mean( U ):
     U[ inds ] = avg
     return U
 
-
 def bicluster( X ):
     submatricies_found = 0
     m, n = X.shape
+    X_transpose = X.transpose( )
     clusters = [ ]
     while True:
         winner        = numpy.zeros( X.shape )
@@ -164,7 +146,7 @@ def bicluster( X ):
             last_b_inds = [ ]
             while True: 
                 a_inds = get_k_rows_with_largest_sum_over_B( k, b_inds, X )
-                b_inds = get_l_cols_with_largest_sum_over_A( l, a_inds, X )
+                b_inds = get_l_cols_with_largest_sum_over_A( l, a_inds, X_transpose )
                 if inds_have_converged( a_inds, b_inds, last_a_inds, last_b_inds ):
                     break
                 last_a_inds = a_inds
@@ -196,26 +178,24 @@ if __name__ == '__main__':
     SIZE  = 10
     SHAPE = ( SIZE, SIZE )
     X     = abs( numpy.random.normal( size=SHAPE ) )
-    X    *= X[ numpy.unravel_index( X.argmax( ), X.shape ) ]
+    X    *= 1 / X[ numpy.unravel_index( X.argmax( ), X.shape ) ]
 
     # Add a feature to detect
     FEATURE = numpy.zeros( SHAPE )
     FEATURE[0:SIZE/2,0:SIZE/2] = 2.0
     X += FEATURE
 
-    # Add a feature to detect
-    FEATURE = numpy.zeros( SHAPE )
-    FEATURE[SIZE/2:SIZE-1,SIZE/2:SIZE-1] = -2.0
-    X += FEATURE
-    
-    clusters = bicluster( X )
+    print X
+
+    clusters = bicluster( X.copy( ) )
     for cluster in clusters:
         wrapper = numpy.zeros( X.shape )
         wrapper[cluster] = X[cluster]
         print wrapper 
-    
+''' 
     clusters = bicluster( -X )
     for cluster in clusters:
         wrapper = numpy.zeros( X.shape )
         wrapper[cluster] = X[cluster]
         print wrapper 
+'''

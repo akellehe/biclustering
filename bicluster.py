@@ -11,6 +11,8 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+    Copyright 2012 (c) Andrew Kelleher.  All rights reserved.
 '''
 import numpy
 import random
@@ -21,19 +23,27 @@ from math import *
 #A, k, m rows
 #B, l, n cols
 
-ITERATIONS = 1000
-SIZE = 5000
-SHAPE = ( SIZE, SIZE )
+ITERATIONS       = 1000
+MAX_SUBMATRICIES = 5
 
 # Populate a test matrix with gaussian noise in (0,1)
-X = numpy.random.normal( size=SHAPE )
-X += 2
-X *= 0.5
+SIZE  = 10
+SHAPE = ( SIZE, SIZE )
+X     = abs( numpy.random.normal( size=SHAPE ) )
+X    *= X[ numpy.unravel_index( X.argmax( ), X.shape ) ]
 
 # Add a feature to detect
 FEATURE = numpy.zeros( SHAPE )
-FEATURE[0:SIZE/2,0:SIZE/2] = 4
+FEATURE[0:SIZE/2,0:SIZE/2] = 2.0
 X += FEATURE
+
+FEATURE = numpy.zeros( SHAPE )
+FEATURE[SIZE/2:SIZE-1,SIZE/2:SIZE-1] = -2
+X += FEATURE
+
+#FEATURE = numpy.zeros( SHAPE )
+#FEATURE[SIZE/2:SIZE-1,SIZE/2:SIZE-1] = 2
+#X += FEATURE
 
 m, n = X.shape
 
@@ -150,32 +160,50 @@ def get_n_randoms_from_list( n, mylist ):
         del mylist[-1]
         out.append( elem )
     return out
-    
+
+def convert_submatrix_to_mean( U ):
+    inds = U.nonzero( )
+    avg  = numpy.average( U )
+    U *= 0
+    U[ inds ] = avg
+    return U
 
 if __name__ == '__main__':
-    winner        = numpy.zeros( X.shape )
-    winning_score = 0 
-    end_time      = False
-    start_time    = time.time( )
-    for it in range( 0, ITERATIONS ):
-        print it
-        k, l  = get_k_and_l( m, n )
-        b_inds = get_n_randoms_from_list( l, range( X.shape[ 1 ] ) )
-        last_a_inds = [ ]
-        last_b_inds = [ ]
-        while True: 
-            a_inds = get_k_rows_with_largest_sum_over_B( k, b_inds, X )
-            b_inds = get_l_cols_with_largest_sum_over_A( l, a_inds, X )
-            if inds_have_converged( a_inds, b_inds, last_a_inds, last_b_inds ):
-                break
-            last_a_inds = a_inds
-            last_b_inds = b_inds
-        U = get_intersection_inds( a_inds, b_inds )
-        U_score = S( U, k, l, m, n )
-        if U_score > winning_score:
-            winner = U.copy( )
-            winning_score = U_score
-        print get_remaining_time( start_time, time.time( ), it )
-    
-    print winning_score
-    print winner
+    submatricies_found = 0
+    while True:
+        winner        = numpy.zeros( X.shape )
+        winning_score = 0 
+        end_time      = False
+        start_time    = time.time( )
+        for it in range( 0, ITERATIONS ):
+            k, l  = get_k_and_l( m, n )
+            b_inds = get_n_randoms_from_list( l, range( X.shape[ 1 ] ) )
+            last_a_inds = [ ]
+            last_b_inds = [ ]
+            while True: 
+                a_inds = get_k_rows_with_largest_sum_over_B( k, b_inds, X )
+                b_inds = get_l_cols_with_largest_sum_over_A( l, a_inds, X )
+                if inds_have_converged( a_inds, b_inds, last_a_inds, last_b_inds ):
+                    break
+                last_a_inds = a_inds
+                last_b_inds = b_inds
+            U = get_intersection_inds( a_inds, b_inds )
+            U_score = S( U, k, l, m, n )
+            if U_score > winning_score:
+                winner = U.copy( )
+                winning_score = U_score
+        
+        if submatricies_found == 0:
+            initial_winning_score = float( winning_score )
+
+        if winning_score < 0.01 * initial_winning_score:
+            break
+        if submatricies_found >= MAX_SUBMATRICIES:
+            break
+
+        print winner 
+        print winning_score
+        
+        X -= convert_submatrix_to_mean( winner )
+
+        submatricies_found += 1

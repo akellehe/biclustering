@@ -98,7 +98,7 @@ def get_intersection( A, B ):
 def binomial( n, k ):
     '''Expand the binomial'''
     if n > k:
-        return factorial( n ) / ( factorial( k ) * factorial( n - k ) )
+        return math.factorial( n ) / ( math.factorial( k ) * math.factorial( n - k ) )
 
 def S( U, k, l, m, n ):
     '''Scoring function for a submatrix of a parent matrix of width n and height m, U of width l and height k''' 
@@ -147,6 +147,7 @@ def get_submatrix_from_cluster( cluster, X ):
     '''Returns a matrix the shape of X corresponding to a set of indicies corresponding to a cluster'''
     wrapper = numpy.zeros( X.shape )
     wrapper[cluster] = X[cluster]
+    return wrapper
     
 
 def bicluster( X ):
@@ -172,7 +173,7 @@ def bicluster( X ):
                     break
                 last_a_inds = a_inds
                 last_b_inds = b_inds
-            U = get_intersection_inds( a_inds, b_inds )
+            U = get_intersection_inds( a_inds, b_inds, X )
             U_score = S( U, k, l, m, n )
             if U_score > winning_score:
                 winner = U.copy( )
@@ -203,17 +204,13 @@ if __name__ == '__main__':
 
     # Add a feature to detect
     FEATURE = numpy.zeros( SHAPE )
-    FEATURE[0:SIZE/2,0:SIZE/2] = 2.0
+    FEATURE[0:SIZE/2,0:SIZE/2] = 5
     X += FEATURE
 
+    print X
+
     clusters = bicluster( X.copy( ) )
+    print "Clusters: "
+    print clusters
     for cluster in clusters:
         print get_submatrix_from_cluster( cluster, X )
-
-''' 
-    clusters = bicluster( -X )
-    for cluster in clusters:
-        wrapper = numpy.zeros( X.shape )
-        wrapper[cluster] = X[cluster]
-        print wrapper 
-'''
